@@ -60,6 +60,83 @@ module( "ajax", {
 		}
 	});
 
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - execute js for crossOrigin when dataType option is provided", 3, {
+		create: function( options ) {
+			options.crossDomain = true;
+			options.dataType = "script";
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute text/javascript (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=script"), options );
+		},
+		success: function( data ) {
+			ok( /Script executed correctly/.test( data ), "script returned as text" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - no script content-type sniffing for detected cross-domain requests", 5, [
+		{
+			url: "http://example.invalid/data/script.php?header=ecma",
+			beforeSend: function( xhr, settings ) {
+				ok( settings.crossDomain, "cross-domain request detected from the url" );
+				strictEqual( settings.contents.script, false, "script content-type sniffing disabled" );
+				return false;
+			},
+			error: true
+		},
+		{
+			url: url("data/script.php?header=ecma"),
+			beforeSend: function( xhr, settings ) {
+				ok( !settings.crossDomain, "same-domain request detected from the url" );
+				ok( settings.contents.script.test( "application/ecmascript" ),
+					"script content-type sniffing kept for same-domain requests" );
+				ok( jQuery.ajaxSettings.contents.script.test( "text/javascript" ),
+					"global contents setting left untouched" );
+				return false;
+			},
+			error: true
+		}
+	]);
+
 	ajaxTest( "jQuery.ajax() - success callbacks (late binding)", 8, {
 		setup: addGlobalEvents("ajaxStart ajaxStop ajaxSend ajaxComplete ajaxSuccess"),
 		url: url("data/name.html"),
