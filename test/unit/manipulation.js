@@ -2464,6 +2464,12 @@ asyncTest( "Sanitized HTML doesn't get unsanitized", function() {
 			"<noembed><noembed/><img src=url404 onerror=xss(%)>"
 		];
 
+	// Support: IE<=9
+	// IE<=9 still needs the select wrapper for <option> markup (CVE-2020-11023)
+	if ( jQuery.support.option ) {
+		htmlStrings.push( "<option><style></option></select><img src=url404 onerror=xss(%)></style>" );
+	}
+
 	expect( htmlStrings.length * methods.length );
 
 	Globals.register("xss");
@@ -2492,4 +2498,48 @@ asyncTest( "Sanitized HTML doesn't get unsanitized", function() {
 		});
 		start();
 	}, 1000 );
+});
+
+test( "<option> markup is not wrapped in a select element (CVE-2020-11023)", function() {
+
+	// Support: IE<=9
+	// IE<=9 still needs the select wrapper for <option> markup
+	if ( !jQuery.support.option ) {
+		expect( 1 );
+		ok( true, "IE<=9 wraps <option> markup in a select element" );
+		return;
+	}
+
+	expect( 10 );
+
+	var elems,
+		nativeDiv = document.createElement("div"),
+		styleMarkup = "<option><style></option></select><img alt='cve-2020-11023'></style>",
+		inputMarkup = "<option>a<input name='cve-2020-11023'></option>";
+
+	// The sanitized style contents must stay text, as they would outside of a select
+	elems = jQuery( styleMarkup );
+	equal( elems.length, 1, "jQuery( html ) created a single element" );
+	ok( jQuery.nodeName( elems[ 0 ], "option" ), "jQuery( html ) created an option element" );
+	equal( elems.find("img").length, 0, "No img element escaped from the style contents" );
+	equal( elems.find("style").text(), "</option></select><img alt='cve-2020-11023'>",
+		"The style contents were kept as text" );
+
+	nativeDiv.innerHTML = styleMarkup;
+	equal( jQuery("<div></div>").html( styleMarkup ).html(), nativeDiv.innerHTML,
+		".html() parses <option> markup like the browser does outside of select" );
+
+	// An <input> would close a select wrapper and drop the rest of the markup
+	elems = jQuery( inputMarkup );
+	equal( elems.length, 1, "jQuery( html ) kept the option element" );
+	equal( elems.find("input").length, 1, "The input was kept inside the option" );
+
+	nativeDiv.innerHTML = inputMarkup;
+	equal( jQuery("<div></div>").html( inputMarkup ).html(), nativeDiv.innerHTML,
+		".html() parses <option> markup like the browser does outside of select" );
+	equal( jQuery("<div></div>").append( inputMarkup ).html(), nativeDiv.innerHTML,
+		".append() parses <option> markup like the browser does outside of select" );
+
+	equal( jQuery("<optgroup><option>b<input></option></optgroup>").find("input").length, 1,
+		"<optgroup> markup is not wrapped in a select element either" );
 });
